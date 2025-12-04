@@ -1,0 +1,10 @@
+node_modules/
+*.log
+.DS_Store
+*.swp
+*.swo
+*~
+.env
+send-a2a-request.trigger
+temp_repo/
+
