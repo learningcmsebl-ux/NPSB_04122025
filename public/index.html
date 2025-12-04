@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NPSB Transaction Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 0.9em;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .section-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #667eea;
+            margin: 30px 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        button {
+            padding: 15px 40px;
+            font-size: 1.1em;
+            font-weight: 600;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-send {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-send:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-send:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-reset {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-reset:hover {
+            background: #e0e0e0;
+        }
+
+        .response-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .response-section.show {
+            display: block;
+        }
+
+        .response-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .response-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+
+        .response-item strong {
+            color: #333;
+            display: inline-block;
+            min-width: 150px;
+        }
+
+        .response-hex {
+            font-family: 'Courier New', monospace;
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            word-break: break-all;
+            margin-top: 10px;
+        }
+
+        .success {
+            color: #28a745;
+        }
+
+        .error {
+            color: #dc3545;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .connection-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196f3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>NPSB Transaction Simulator</h1>
+            <p>ISO8583 Account-to-Account Credit Message</p>
+        </div>
+
+        <div class="content">
+            <div class="connection-info">
+                <strong>Connection:</strong> <span id="connectionInfo">localhost:5000</span>
+            </div>
+
+            <form id="transactionForm">
+                <div class="section-title">Connection Settings</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="host">Host</label>
+                        <input type="text" id="host" name="host" value="localhost" placeholder="localhost">
+                    </div>
+                    <div class="form-group">
+                        <label for="port">Port</label>
+                        <input type="number" id="port" name="port" value="5000" placeholder="5000">
+                    </div>
+                </div>
+
+                <div class="section-title">Transaction Details</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="pan">DE2 - PAN (Primary Account Number)</label>
+                        <input type="text" id="pan" name="pan" value="0000950000000000" maxlength="19">
+                    </div>
+                    <div class="form-group">
+                        <label for="procCode">DE3 - Processing Code</label>
+                        <input type="text" id="procCode" name="procCode" value="280000" maxlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label for="amount">DE4 - Amount (Transaction)</label>
+                        <input type="text" id="amount" name="amount" value="000015600000" maxlength="12">
+                    </div>
+                    <div class="form-group">
+                        <label for="settlementAmount">DE5 - Settlement Amount</label>
+                        <input type="text" id="settlementAmount" name="settlementAmount" value="" maxlength="12" placeholder="Auto (same as Amount)">
+                    </div>
+                    <div class="form-group">
+                        <label for="billingAmount">DE6 - Billing Amount</label>
+                        <input type="text" id="billingAmount" name="billingAmount" value="" maxlength="12" placeholder="Auto (same as Amount)">
+                    </div>
+                    <div class="form-group">
+                        <label for="currency">DE49 - Currency Code</label>
+                        <input type="text" id="currency" name="currency" value="050" maxlength="3">
+                    </div>
+                </div>
+
+                <div class="section-title">Transaction Identifiers</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="stan">DE11 - STAN (System Trace Audit Number)</label>
+                        <input type="text" id="stan" name="stan" value="" maxlength="6" placeholder="Auto (random)">
+                    </div>
+                    <div class="form-group">
+                        <label for="rrn">DE37 - RRN (Retrieval Reference Number)</label>
+                        <input type="text" id="rrn" name="rrn" value="" maxlength="12" placeholder="Auto (generated)">
+                    </div>
+                    <div class="form-group">
+                        <label for="transmissionDateTime">DE7 - Transmission Date & Time (MMDDHHmmss)</label>
+                        <input type="text" id="transmissionDateTime" name="transmissionDateTime" value="" maxlength="10" placeholder="Auto (current UTC)">
+                    </div>
+                    <div class="form-group">
+                        <label for="localTime">DE12 - Local Time (HHmmss)</label>
+                        <input type="text" id="localTime" name="localTime" value="" maxlength="6" placeholder="Auto (current UTC)">
+                    </div>
+                    <div class="form-group">
+                        <label for="localDate">DE13 - Local Date (MMDD)</label>
+                        <input type="text" id="localDate" name="localDate" value="" maxlength="4" placeholder="Auto (current UTC)">
+                    </div>
+                </div>
+
+                <div class="section-title">Merchant & Acquirer Information</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="merchantType">DE18 - Merchant Type</label>
+                        <input type="text" id="merchantType" name="merchantType" value="6013" maxlength="4">
+                    </div>
+                    <div class="form-group">
+                        <label for="entryMode">DE22 - Entry Mode</label>
+                        <input type="text" id="entryMode" name="entryMode" value="012" maxlength="3">
+                    </div>
+                    <div class="form-group">
+                        <label for="acquirerId">DE32 - Acquirer ID</label>
+                        <input type="text" id="acquirerId" name="acquirerId" value="000015" maxlength="11">
+                    </div>
+                    <div class="form-group">
+                        <label for="terminalId">DE41 - Terminal ID</label>
+                        <input type="text" id="terminalId" name="terminalId" value="90200151" maxlength="8">
+                    </div>
+                    <div class="form-group">
+                        <label for="cardAcceptorId">DE42 - Card Acceptor ID (15 chars)</label>
+                        <input type="text" id="cardAcceptorId" name="cardAcceptorId" value="AL-ARAFAH BANK  " maxlength="15">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="cardAcceptorName">DE43 - Card Acceptor Name/Location</label>
+                        <input type="text" id="cardAcceptorName" name="cardAcceptorName" value="aibl i-banking           DHAKA        BD" maxlength="40">
+                    </div>
+                </div>
+
+                <div class="section-title">Account-to-Account Information</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="counterpart">DE103 - Counterpart Account</label>
+                        <input type="text" id="counterpart" name="counterpart" value="2001070006085" maxlength="28">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="additionalInfo">DE112 - Additional Info</label>
+                        <input type="text" id="additionalInfo" name="additionalInfo" value="    TWHAT_TRX  TIBFTA2A" maxlength="999">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="field47">DE47 - PDS927 (Counterpart Account ID)</label>
+                        <input type="text" id="field47" name="field47" value="" placeholder="Auto (9270 + Counterpart Account)">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="field48">DE48 - PDS848 (Payment Service Code)</label>
+                        <input type="text" id="field48" name="field48" value="" placeholder="Auto (8480 + Counterpart Account)">
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" class="btn-send" id="sendBtn">Send Transaction</button>
+                    <button type="button" class="btn-reset" id="resetBtn">Reset to Defaults</button>
+                </div>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Sending transaction...</p>
+            </div>
+
+            <div class="response-section" id="responseSection">
+                <h3>Response</h3>
+                <div id="responseContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('transactionForm');
+        const sendBtn = document.getElementById('sendBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const loading = document.getElementById('loading');
+        const responseSection = document.getElementById('responseSection');
+        const responseContent = document.getElementById('responseContent');
+        const connectionInfo = document.getElementById('connectionInfo');
+
+        // Update connection info
+        function updateConnectionInfo() {
+            const host = document.getElementById('host').value || 'localhost';
+            const port = document.getElementById('port').value || '5000';
+            connectionInfo.textContent = `${host}:${port}`;
+        }
+
+        document.getElementById('host').addEventListener('input', updateConnectionInfo);
+        document.getElementById('port').addEventListener('input', updateConnectionInfo);
+        updateConnectionInfo();
+
+        // Auto-pad DE42 field to 15 characters
+        const cardAcceptorIdField = document.getElementById('cardAcceptorId');
+        cardAcceptorIdField.addEventListener('blur', function() {
+            if (this.value.length < 15) {
+                this.value = this.value.padEnd(15, ' ');
+            } else if (this.value.length > 15) {
+                this.value = this.value.substring(0, 15);
+            }
+        });
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Ensure DE42 is exactly 15 characters before submission
+            const cardAcceptorId = document.getElementById('cardAcceptorId').value;
+            if (cardAcceptorId.length < 15) {
+                document.getElementById('cardAcceptorId').value = cardAcceptorId.padEnd(15, ' ');
+            } else if (cardAcceptorId.length > 15) {
+                document.getElementById('cardAcceptorId').value = cardAcceptorId.substring(0, 15);
+            }
+            
+            sendBtn.disabled = true;
+            loading.classList.add('show');
+            responseSection.classList.remove('show');
+
+            const formData = new FormData(form);
+            const data = {};
+            // Fields that should NOT be trimmed (need to preserve spaces for fixed length)
+            const noTrimFields = ['cardAcceptorId', 'cardAcceptorName', 'terminalId'];
+            
+            for (const [key, value] of formData.entries()) {
+                if (value !== '') {
+                    // Don't trim fields that need to preserve spaces for fixed length
+                    if (noTrimFields.includes(key)) {
+                        data[key] = value;
+                    } else {
+                        data[key] = value.trim();
+                    }
+                }
+            }
+
+            try {
+                const response = await fetch('/api/send-transaction', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data),
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    responseContent.innerHTML = `
+                        <div class="response-item success">
+                            <strong>Status:</strong> <span class="success">✓ Transaction Sent Successfully</span>
+                        </div>
+                        <div class="response-item">
+                            <strong>Request Length:</strong> ${result.requestLength} bytes
+                        </div>
+                        <div class="response-item">
+                            <strong>Message Length:</strong> ${result.messageLength} bytes
+                        </div>
+                        <div class="response-item">
+                            <strong>Response Length:</strong> ${result.responseLength} bytes
+                        </div>
+                        <div class="response-item">
+                            <strong>Response (Hex):</strong>
+                            <div class="response-hex">${result.responseHex}</div>
+                        </div>
+                    `;
+                } else {
+                    responseContent.innerHTML = `
+                        <div class="response-item error">
+                            <strong>Error:</strong> <span class="error">${result.error}</span>
+                        </div>
+                    `;
+                }
+                
+                responseSection.classList.add('show');
+            } catch (error) {
+                responseContent.innerHTML = `
+                    <div class="response-item error">
+                        <strong>Error:</strong> <span class="error">${error.message}</span>
+                    </div>
+                `;
+                responseSection.classList.add('show');
+            } finally {
+                sendBtn.disabled = false;
+                loading.classList.remove('show');
+            }
+        });
+
+        // Reset button
+        resetBtn.addEventListener('click', () => {
+            form.reset();
+            responseSection.classList.remove('show');
+            updateConnectionInfo();
+        });
+    </script>
+</body>
+</html>
+
